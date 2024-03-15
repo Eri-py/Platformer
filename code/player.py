@@ -13,47 +13,48 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.image.get_frect(center = pos)
         self.old_rect = self.rect.copy()     
         #movement
-        self.movement_vector = vector()
+        self.direction = vector()
         self.speed = 400
         #fall
         self.gravity = 1300
-        self.jump_height = 715
-        self.jump_index = 0
+        #jump
+        self.jump_height = 595
+        self.jump_count = 0
+        self.max_jumps = 2
         #collisions
         self.collision_sprites = collision_sprites
 
     def input(self, event) -> None:
         #Keyboard movement
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_d or event.key == pygame.K_RIGHT: #right movement
-                self.movement_vector.x = 1 
-            elif event.key == pygame.K_a or event.key == pygame.K_LEFT:
-                self.movement_vector.x = -1 #left movement
-        if event.type == pygame.KEYUP:
-            if event.key == pygame.K_d or event.key == pygame.K_a or event.key == pygame.K_RIGHT or event.key == pygame.K_LEFT:
-                self.movement_vector.x = 0  #stop movement
-        #jump motion - keyboard
-        pass
-        #Controller movement
-        if event.type == pygame.JOYBUTTONDOWN:
-            if event.button == 14: 
-                self.movement_vector.x = 1 #right movement
-            elif event.button == 13:
-                self.movement_vector.x = -1 #left movement
-        if event.type == pygame.JOYBUTTONUP:
-            if event.button == 14 or event.button == 13:
-                self.movement_vector.x = 0 #stop movement
-        
+        keys = pygame.key.get_pressed() # return dictionary containing all keys and a boolean 
+        #right motion
+        if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
+            self.direction.x = 1
+        #left motion
+        elif keys[pygame.K_a] or keys[pygame.K_LEFT]:
+            self.direction.x = -1
+        #stop motion
+        else:
+            self.direction.x = 0 
+        #jump
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+            self.jump()   
+             
     def move(self, dt) -> None:
         #horizontal
-        self.rect.x += self.movement_vector.x * self.speed * dt
+        self.rect.x += self.direction.x * self.speed * dt
         self.collision("horizontal")
         #vertical movement / gravity
-        self.movement_vector.y += self.gravity / 2 * dt
-        self.rect.y += self.movement_vector.y * dt
-        self.movement_vector.y += self.gravity / 2 * dt
+        self.direction.y += self.gravity / 2 * dt
+        self.rect.y += self.direction.y * dt
+        self.direction.y += self.gravity / 2 * dt
         self.collision("vertical")
-        
+    
+    def jump(self):
+        if (self.rect.bottom <= sprite.rect.top for sprite in self.collision_sprites) and self.jump_count < self.max_jumps:
+            self.direction.y = -self.jump_height
+            self.jump_count +=1 
+            
     def collision(self, axis) -> None:
         for sprite in self.collision_sprites:
             if self.rect.colliderect(sprite.rect):
@@ -61,7 +62,8 @@ class Player(pygame.sprite.Sprite):
                     #bottom
                     if self.rect.bottom >= sprite.rect.top and self.old_rect.bottom <= sprite.old_rect.top:
                         self.rect.bottom = sprite.rect.top
-                        self.movement_vector.y = 0
+                        self.direction.y = 0
+                        self.jump_count = 0
                     #top
                     if self.rect.top <= sprite.rect.bottom and self.old_rect.top >= sprite.old_rect.bottom:
                         self.rect.top = sprite.rect.bottom
