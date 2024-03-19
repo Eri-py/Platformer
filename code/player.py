@@ -2,6 +2,8 @@ from settings import *
 from timer import Timer
 from pygame.image import load
 from os.path import join
+
+
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos, groups, collision_sprites) -> None:
         super().__init__(groups)
@@ -18,14 +20,17 @@ class Player(pygame.sprite.Sprite):
         self.gravity = 1300
         self.jump = False
         self.jump_height = 595
-        #collisions
+        # collisions
         self.collision_sprites = collision_sprites
         self.on_surface = {"floor": False, "left": False, "right": False}     
         self.platform = None
-        #timer
+        # timer
         self.timers = {"wall jump": Timer(250), "wall jump block": Timer(1000)}
+        # check input type
+        self.controller_active = False
+        self.joystick = None
 
-    def input(self) -> None:
+    def keyboard_input(self) -> None:
         keys = pygame.key.get_pressed()
         input_vector = vector(0, 0)
         if not self.timers["wall jump"].active: # disable movement on a wall
@@ -39,6 +44,30 @@ class Player(pygame.sprite.Sprite):
         # jump
         if keys[pygame.K_SPACE]:
             self.jump = True
+
+    def controller_input(self) -> None: 
+        input_vector = vector()
+        if not self.timers["wall jump"].active:
+            input_vector.x = self.joystick.get_axis(0) if abs(self.joystick.get_axis(0)) > 0.3 else 0
+            self.direction.x = input_vector.normalize().x if input_vector else 0
+        if self.joystick.get_button(0):
+            self.jump = True
+        
+    def check_input(self) -> None: # checks last pressed device
+        pygame.joystick.init()
+        joysticks = [pygame.joystick.Joystick(x) for x in range(pygame.joystick.get_count())] # list containing all active controllers
+        if len(joysticks) >= 1: 
+            self.joystick = pygame.joystick.Joystick(0) # first controller
+            if abs(self.joystick.get_axis(0)) > 0.7 or abs(self.joystick.get_axis(1)) > 0.7 or 1 in [self.joystick.get_button(x) for x in range(self.joystick.get_numbuttons())]: # if any button is pressed or analog stick moved a significant distance
+                self.controller_active = True
+            if True in pygame.key.get_pressed():
+                self.controller_active = False
+    
+    def input(self) -> None: # which input type to register
+        if self.controller_active: 
+            self.controller_input()
+        else:
+            self.keyboard_input()
 
     def move(self, dt) -> None: # controls all player motion
         # horizontal
@@ -118,8 +147,9 @@ class Player(pygame.sprite.Sprite):
 
     def update(self, dt) -> None: # updates sprites
         self.old_rect = self.hitbox_rect.copy()
-        self.input()
         self.update_timer()
+        self.check_input()
+        self.input()
         self.move(dt) 
         self.platform_move(dt)
         self.check_contact()
